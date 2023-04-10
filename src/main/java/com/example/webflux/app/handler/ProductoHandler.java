@@ -5,12 +5,16 @@ import java.net.URI;
 import java.util.Date;
 import java.util.UUID;
 
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.http.codec.multipart.FormFieldPart;
 import org.springframework.stereotype.Component;
+import org.springframework.validation.BeanPropertyBindingResult;
+import org.springframework.validation.Errors;
+import org.springframework.validation.Validator;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import static org.springframework.web.reactive.function.BodyInserters.*;
@@ -19,6 +23,7 @@ import com.example.webflux.app.models.documents.Categoria;
 import com.example.webflux.app.models.documents.Producto;
 import com.example.webflux.app.models.service.ProductoService;
 
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Component
@@ -29,6 +34,9 @@ public class ProductoHandler {
 	
 	@Value("${config.uploads.path}")
 	private String path;
+	
+	@Autowired
+	private Validator validator;
 	
 	public Mono<ServerResponse> upload(ServerRequest request){
 		String id = request.pathVariable("id");
@@ -99,14 +107,27 @@ public class ProductoHandler {
 		Mono<Producto> producto = request.bodyToMono(Producto.class);
 		
 		return producto.flatMap(p -> {
-			if(p.getCreateAt() ==null) {
-				p.setCreateAt(new Date());
+			
+			Errors errors = new BeanPropertyBindingResult(p, Producto.class.getName());
+			validator.validate(p, errors);
+			
+			if(errors.hasErrors()) {
+				return Flux.fromIterable(errors.getFieldErrors())
+						.map(fieldError -> "El campo " + fieldError.getField() + " " + fieldError.getDefaultMessage())
+						.collectList()
+						.flatMap(list -> ServerResponse.badRequest().body(fromValue(list)));
 			}
-			return service.save(p);
-		}).flatMap(p -> ServerResponse
-				.created(URI.create("/api/v2/productos/".concat(p.getId())))
-				.contentType(MediaType.APPLICATION_JSON)
-				.body(fromValue(p)));
+			
+			else {
+				if(p.getCreateAt() ==null) {
+					p.setCreateAt(new Date());
+				}
+				return service.save(p).flatMap(pdb -> ServerResponse
+						.created(URI.create("/api/v2/productos/".concat(pdb.getId())))
+						.contentType(MediaType.APPLICATION_JSON)
+						.body(fromValue(pdb)));
+			}
+		});
 	}
 	
 	public Mono<ServerResponse> editar(ServerRequest request){
