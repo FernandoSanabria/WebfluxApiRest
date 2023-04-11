@@ -1,6 +1,7 @@
 package com.example.webflux.app;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 import org.assertj.core.api.Assertions;
@@ -9,6 +10,7 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.reactive.server.WebTestClient;
@@ -16,6 +18,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 import com.example.webflux.app.models.documents.Categoria;
 import com.example.webflux.app.models.documents.Producto;
 import com.example.webflux.app.models.service.ProductoService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import reactor.core.publisher.Mono;
 
@@ -91,9 +94,9 @@ public class SpringbootWebfluxApirestApplicationTests {
 		.expectStatus().isCreated()
 		.expectHeader().contentType(MediaType.APPLICATION_JSON)
 		.expectBody()
-		.jsonPath("$.id").isNotEmpty()
-		.jsonPath("$.nombre").isEqualTo("Mesa comedor")
-		.jsonPath("$.categoria.nombre").isEqualTo("Muebles");
+		.jsonPath("$.producto.id").isNotEmpty()
+		.jsonPath("$.producto.nombre").isEqualTo("Mesa comedor")
+		.jsonPath("$.producto.categoria.nombre").isEqualTo("Muebles");
 	}
 
 	@Test
@@ -110,9 +113,10 @@ public class SpringbootWebfluxApirestApplicationTests {
 		.exchange()
 		.expectStatus().isCreated()
 		.expectHeader().contentType(MediaType.APPLICATION_JSON)
-		.expectBody(Producto.class)
+		.expectBody(new ParameterizedTypeReference<LinkedHashMap<String, Object>>() {})
 		.consumeWith(response -> {
-			Producto p = response.getResponseBody();
+			Object o = response.getResponseBody().get("producto");
+			Producto p = new ObjectMapper().convertValue(o, Producto.class);
 			Assertions.assertThat(p.getId()).isNotEmpty();
 			Assertions.assertThat(p.getNombre()).isEqualTo("Mesa comedor");
 			Assertions.assertThat(p.getCategoria().getNombre()).isEqualTo("Muebles");
