@@ -7,6 +7,7 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -27,12 +28,15 @@ public class SpringbootWebfluxApirestApplicationTests {
 	
 	@Autowired
 	private ProductoService service;
+	
+	@Value("${config.base.endpoint}")
+	private String url;
 
 	@Test
 	public void listarTest() {
 		
 		client.get()
-		.uri("/api/v2/productos")
+		.uri(url)
 		.accept(MediaType.APPLICATION_JSON)
 		.exchange()
 		.expectStatus().isOk()
@@ -55,7 +59,7 @@ public class SpringbootWebfluxApirestApplicationTests {
 		Producto producto = service.findByNombre("TV Panasonic Pantalla LCD").block();
 		
 		client.get()
-		.uri("/api/v2/productos/{id}", Collections.singletonMap("id", producto.getId()))
+		.uri(url.concat("/{id}"), Collections.singletonMap("id", producto.getId()))
 		.accept(MediaType.APPLICATION_JSON)
 		.exchange()
 		.expectStatus().isOk()
@@ -79,7 +83,7 @@ public class SpringbootWebfluxApirestApplicationTests {
 		
 		Producto producto = new Producto("Mesa comedor", 100.00, categoria);
 		
-		client.post().uri("/api/v2/productos")
+		client.post().uri(url)
 		.contentType(MediaType.APPLICATION_JSON)
 		.accept(MediaType.APPLICATION_JSON)
 		.body(Mono.just(producto), Producto.class)
@@ -99,7 +103,7 @@ public class SpringbootWebfluxApirestApplicationTests {
 		
 		Producto producto = new Producto("Mesa comedor", 100.00, categoria);
 		
-		client.post().uri("/api/v2/productos")
+		client.post().uri(url)
 		.contentType(MediaType.APPLICATION_JSON)
 		.accept(MediaType.APPLICATION_JSON)
 		.body(Mono.just(producto), Producto.class)
@@ -141,14 +145,14 @@ public class SpringbootWebfluxApirestApplicationTests {
 	public void eliminarTest() {
 		Producto producto = service.findByNombre("Mica Cómoda 5 Cajones").block();
 		client.delete()
-		.uri("/api/v2/productos/{id}", Collections.singletonMap("id", producto.getId()))
+		.uri(url+"/{id}", Collections.singletonMap("id", producto.getId()))
 		.exchange()
 		.expectStatus().isNoContent()
 		.expectBody()
 		.isEmpty();
 		
 		client.get()
-		.uri("/api/v2/productos/{id}", Collections.singletonMap("id", producto.getId()))
+		.uri(url+"/{id}", Collections.singletonMap("id", producto.getId()))
 		.exchange()
 		.expectStatus().isNotFound()
 		.expectBody()
